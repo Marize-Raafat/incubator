@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
 import 'package:baby_incubator/main.dart';
+import 'package:baby_incubator/providers/vitals_provider.dart';
+import 'package:baby_incubator/services/esp_service.dart';
+import 'package:baby_incubator/services/notification_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App renders dashboard screen', (WidgetTester tester) async {
+    final espService = EspService(simulationMode: true);
+    final notificationService = NotificationService();
+    await notificationService.initialize();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => VitalsProvider(
+              espService: espService,
+              notificationService: notificationService,
+            )..startMonitoring(),
+          ),
+        ],
+        child: const BabyIncubatorApp(),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify the app renders with the dashboard title
+    expect(find.text('Infant Incubator'), findsOneWidget);
+    expect(find.text('Dashboard'), findsOneWidget);
   });
 }
+

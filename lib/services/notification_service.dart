@@ -1,4 +1,3 @@
-import 'dart:async';
 import '../models/vitals.dart';
 
 /// Alert level enumeration

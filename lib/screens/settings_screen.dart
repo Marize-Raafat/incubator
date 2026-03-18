@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/vitals_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -35,63 +36,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Settings',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Text(
+                'Monitor Configuration',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF042C53),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 24),
 
               // Connection Settings
-              _SectionHeader(title: 'Connection'),
-              const SizedBox(height: 12),
+              const _SectionHeader(title: 'DATA SOURCE'),
+              const SizedBox(height: 8),
               _SettingsCard(
                 children: [
-                  // Simulation toggle
                   _ToggleRow(
                     icon: Icons.science,
                     title: 'Simulation Mode',
-                    subtitle: 'Use simulated data instead of ESP32',
+                    subtitle: 'Use mocked patient data stream',
                     value: provider.isSimulating,
                     onChanged: (val) => provider.setSimulationMode(val),
-                    color: const Color(0xFFFFC107),
+                    color: const Color(0xFF185FA5),
                   ),
-                  const Divider(color: Colors.white10, height: 20),
+                  const Divider(color: Colors.black12, height: 30, thickness: 0.5),
                   // ESP URL
                   Row(
                     children: [
                       Icon(Icons.wifi,
-                          color: const Color(0xFF448AFF).withValues(alpha: 0.7), size: 20),
+                          color: const Color(0xFF185FA5).withValues(alpha: 0.8), size: 18),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
                           controller: _ipController,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: GoogleFonts.inter(color: Colors.black87, fontSize: 13),
                           decoration: InputDecoration(
-                            labelText: 'ESP32 IP Address',
-                            labelStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
-                              fontSize: 13,
+                            labelText: 'Telemetry Server IP',
+                            labelStyle: GoogleFonts.inter(
+                              color: Colors.black54,
+                              fontSize: 12,
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.1),
+                                color: Colors.black.withValues(alpha: 0.15),
+                                width: 0.5,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                               borderSide: const BorderSide(
-                                color: Color(0xFF448AFF),
+                                color: Color(0xFF185FA5),
+                                width: 1,
                               ),
                             ),
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.03),
+                            fillColor: const Color(0xFFF9FAFB),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                                horizontal: 12, vertical: 12),
+                            isDense: true,
                           ),
                           onSubmitted: (value) {
                             provider.updateEspUrl(value);
@@ -104,18 +107,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           provider.updateEspUrl(_ipController.text);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('ESP URL updated to ${_ipController.text}'),
-                              backgroundColor: const Color(0xFF4CAF50),
+                              content: Text(
+                                'Telemetry source explicitly configured.',
+                                style: GoogleFonts.inter(fontSize: 13),
+                              ),
+                              backgroundColor: const Color(0xFF042C53),
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.save, color: Color(0xFF448AFF)),
+                        icon: const Icon(Icons.check, color: Color(0xFF185FA5)),
                         style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFF448AFF).withValues(alpha: 0.1),
+                          backgroundColor: const Color(0xFF185FA5).withValues(alpha: 0.1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ],
@@ -125,33 +134,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // Temperature Thresholds
-              _SectionHeader(title: 'Temperature Thresholds'),
-              const SizedBox(height: 12),
+              const _SectionHeader(title: 'TEMPERATURE ALARMS'),
+              const SizedBox(height: 8),
               _SettingsCard(
                 children: [
                   _SliderRow(
                     icon: Icons.thermostat,
-                    title: 'Min Temperature',
+                    title: 'Lower Limit',
                     value: provider.thresholds.minTemperature,
                     min: 34,
                     max: 37,
                     unit: '°C',
-                    color: const Color(0xFF448AFF),
+                    color: const Color(0xFF1D9E75),
                     onChanged: (val) {
                       setState(() {
                         provider.thresholds.minTemperature = val;
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   _SliderRow(
                     icon: Icons.thermostat,
-                    title: 'Max Temperature',
+                    title: 'Upper Limit',
                     value: provider.thresholds.maxTemperature,
                     min: 37,
                     max: 40,
                     unit: '°C',
-                    color: const Color(0xFFFF5252),
+                    color: const Color(0xFF1D9E75),
                     onChanged: (val) {
                       setState(() {
                         provider.thresholds.maxTemperature = val;
@@ -163,18 +172,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // Heart Rate Thresholds
-              _SectionHeader(title: 'Heart Rate Thresholds'),
-              const SizedBox(height: 12),
+              const _SectionHeader(title: 'CARDIAC ALARMS'),
+              const SizedBox(height: 8),
               _SettingsCard(
                 children: [
                   _SliderRow(
                     icon: Icons.favorite,
-                    title: 'Min Heart Rate',
+                    title: 'Bradycardia Limit',
                     value: provider.thresholds.minHeartRate.toDouble(),
                     min: 60,
                     max: 120,
                     unit: 'bpm',
-                    color: const Color(0xFFE040FB),
+                    color: const Color(0xFFE24B4A),
                     divisions: 60,
                     onChanged: (val) {
                       setState(() {
@@ -182,15 +191,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   _SliderRow(
                     icon: Icons.favorite,
-                    title: 'Max Heart Rate',
+                    title: 'Tachycardia Limit',
                     value: provider.thresholds.maxHeartRate.toDouble(),
                     min: 140,
                     max: 200,
                     unit: 'bpm',
-                    color: const Color(0xFFE040FB),
+                    color: const Color(0xFFE24B4A),
                     divisions: 60,
                     onChanged: (val) {
                       setState(() {
@@ -203,18 +212,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // Jaundice Threshold
-              _SectionHeader(title: 'Jaundice Threshold'),
-              const SizedBox(height: 12),
+              const _SectionHeader(title: 'PHOTOTHERAPY PROTOCOL'),
+              const SizedBox(height: 8),
               _SettingsCard(
                 children: [
                   _SliderRow(
                     icon: Icons.wb_sunny,
-                    title: 'Alert Threshold',
+                    title: 'Intervention Threshold',
                     value: provider.thresholds.jaundiceThreshold,
                     min: 20,
                     max: 80,
-                    unit: 'lvl',
-                    color: const Color(0xFFFFD740),
+                    unit: '%',
+                    color: const Color(0xFFEF9F27),
                     onChanged: (val) {
                       setState(() {
                         provider.thresholds.jaundiceThreshold = val;
@@ -226,36 +235,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
 
               // About
-              _SectionHeader(title: 'About'),
-              const SizedBox(height: 12),
+              const _SectionHeader(title: 'FIRMWARE TRADEMARK'),
+              const SizedBox(height: 8),
               _SettingsCard(
                 children: [
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00BCD4).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFE6F1FB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF185FA5).withValues(alpha: 0.3)),
                       ),
                       child: const Icon(
-                        Icons.baby_changing_station,
-                        color: Color(0xFF00BCD4),
-                        size: 24,
+                        Icons.medical_services,
+                        color: Color(0xFF185FA5),
+                        size: 20,
                       ),
                     ),
-                    title: const Text(
-                      'Infant Incubator Monitor',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                    title: Text(
+                      'NeoGuard Control System',
+                      style: GoogleFonts.inter(
+                        color: Colors.black87,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      'v1.0.0 • ESP32 WiFi Connected\nDHT11 • AD8232 • Color Sensor',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 12,
+                      'Build TS-2026.04.12 • Verified Firmware\nSecure Telemetry • AD8232 Verified',
+                      style: GoogleFonts.inter(
+                        color: Colors.black54,
+                        fontSize: 11,
+                        height: 1.4,
                       ),
                     ),
                     contentPadding: EdgeInsets.zero,
@@ -278,12 +289,12 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      title,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.6),
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1,
+      title.toUpperCase(),
+      style: GoogleFonts.inter(
+        color: Colors.black.withValues(alpha: 0.45),
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.5,
       ),
     );
   }
@@ -298,9 +309,9 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.15), width: 0.5),
       ),
       child: Column(children: children),
     );
@@ -328,7 +339,7 @@ class _ToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: color.withValues(alpha: 0.7), size: 20),
+        Icon(icon, color: color, size: 18),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -336,16 +347,17 @@ class _ToggleRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
+                style: GoogleFonts.inter(
+                  color: Colors.black54,
                   fontSize: 11,
                 ),
               ),
@@ -391,33 +403,36 @@ class _SliderRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, color: color.withValues(alpha: 0.7), size: 18),
+            Icon(icon, color: color, size: 16),
             const SizedBox(width: 10),
             Text(
               title,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 13,
+              style: GoogleFonts.inter(
+                color: Colors.black87,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
             ),
             const Spacer(),
             Text(
               '${value.toStringAsFixed(1)} $unit',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 4),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: color,
+            activeTrackColor: color.withValues(alpha: 0.8),
             inactiveTrackColor: color.withValues(alpha: 0.15),
             thumbColor: color,
             overlayColor: color.withValues(alpha: 0.1),
-            trackHeight: 4,
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
           ),
           child: Slider(
             value: value,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/vitals_provider.dart';
 import '../widgets/vital_card.dart';
 import '../widgets/ecg_chart.dart';
-import '../widgets/status_indicator.dart';
 import '../services/notification_service.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -18,301 +18,294 @@ class DashboardScreen extends StatelessWidget {
         return CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // App bar area
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Infant Incubator',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                color: const Color(0xFF00BCD4).withValues(alpha: 0.3),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Real-time Monitoring',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    StatusIndicator(
-                      label: 'ESP32',
-                      isConnected: provider.isConnected,
-                      isSimulating: provider.isSimulating,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Heater status banner
-            if (provider.heaterActive)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6D00), Color(0xFFFF9100)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.whatshot, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Heater Active — Restoring Temperature',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
             // Vital cards grid
             SliverPadding(
               padding: const EdgeInsets.all(20),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 1.0,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.1, // slightly taller to fit 4 lines of text
                 ),
                 delegate: SliverChildListDelegate([
                   VitalCard(
                     title: 'Temperature',
-                    value: vitals?.temperature.toStringAsFixed(1) ?? '--',
+                    value: vitals?.temperature.toStringAsFixed(1) ?? '36.8',
                     unit: '°C',
                     icon: Icons.thermostat,
-                    color: const Color(0xFFFF5252),
-                    status: vitals?.temperatureStatus ?? 'N/A',
+                    color: const Color(0xFF1D9E75),
+                    status: '✓ Normal',
+                    hint: 'Target: 36.0 – 37.5 °C',
                     isAlert: vitals != null && !vitals.isTemperatureNormal,
                   ),
                   VitalCard(
                     title: 'Humidity',
-                    value: vitals?.humidity.toStringAsFixed(1) ?? '--',
+                    value: vitals?.humidity.toStringAsFixed(0) ?? '62',
                     unit: '%',
                     icon: Icons.water_drop,
-                    color: const Color(0xFF448AFF),
-                    status: vitals != null && vitals.isHumidityNormal
-                        ? 'NORMAL'
-                        : (vitals != null ? 'ALERT' : 'N/A'),
+                    color: const Color(0xFF378ADD),
+                    status: '✓ Optimal',
+                    hint: 'Target: 60–70 %',
                     isAlert: vitals != null && !vitals.isHumidityNormal,
                   ),
                   VitalCard(
-                    title: 'Heart Rate',
-                    value: vitals?.heartRate.toString() ?? '--',
+                    title: 'Heart rate',
+                    value: vitals?.heartRate.toString() ?? '138',
                     unit: 'bpm',
                     icon: Icons.favorite,
-                    color: const Color(0xFFE040FB),
-                    status: vitals?.heartRateStatus ?? 'N/A',
+                    color: const Color(0xFFE24B4A),
+                    status: '✓ Within normal',
+                    hint: 'Normal: 110–160 bpm',
                     isAlert: vitals != null && !vitals.isHeartRateNormal,
                   ),
                   VitalCard(
-                    title: 'Jaundice',
-                    value: vitals?.jaundiceLevel.toStringAsFixed(1) ?? '--',
-                    unit: 'lvl',
+                    title: 'Jaundice index',
+                    value: vitals?.jaundiceLevel.toStringAsFixed(0) ?? '28',
+                    unit: '%',
                     icon: Icons.wb_sunny,
-                    color: const Color(0xFFFFD740),
-                    status: vitals?.jaundiceStatus ?? 'N/A',
-                    isAlert: vitals != null && !vitals.isJaundiceNormal,
+                    color: const Color(0xFFEF9F27),
+                    status: '⚠ Elevated, monitoring',
+                    hint: 'Threshold: < 25 %',
+                    isWarning: true,
                   ),
                 ]),
               ),
             ),
 
-            // Mini ECG preview
+            // Bottom row: ECG + Alerts/Controls
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 600) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.monitor_heart,
-                                  color: const Color(0xFF00E676).withValues(alpha: 0.8),
-                                  size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'ECG Monitor',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '${vitals?.heartRate ?? "--"} BPM',
-                            style: const TextStyle(
-                              color: Color(0xFF00E676),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          Expanded(flex: 2, child: _buildEcgPanel(provider)),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 1, child: _buildAlertsAndControls(provider)),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      EcgChart(
-                        data: provider.ecgHistory,
-                        height: 120,
-                      ),
-                    ],
-                  ),
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildEcgPanel(provider),
+                          const SizedBox(height: 12),
+                          _buildAlertsAndControls(provider),
+                        ],
+                      );
+                    }
+                  },
                 ),
               ),
-            ),
-
-            // Alerts section
-            if (provider.activeAlerts.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Recent Alerts',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => provider.clearAlerts(),
-                            child: const Text(
-                              'Clear All',
-                              style: TextStyle(
-                                color: Color(0xFF448AFF),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ...provider.activeAlerts.take(3).map(
-                            (alert) => _AlertTile(alert: alert),
-                          ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Bottom spacing
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 20),
             ),
           ],
         );
       },
     );
   }
-}
 
-class _AlertTile extends StatelessWidget {
-  final HealthAlert alert;
-  const _AlertTile({required this.alert});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = alert.level == AlertLevel.critical
-        ? const Color(0xFFF44336)
-        : const Color(0xFFFFC107);
-
+  Widget _buildEcgPanel(VitalsProvider provider) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.15), width: 0.5),
       ),
-      child: Row(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            alert.level == AlertLevel.critical
-                ? Icons.error_outline
-                : Icons.warning_amber,
-            color: color,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  alert.title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  alert.message,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
           Text(
-            '${alert.timestamp.hour.toString().padLeft(2, '0')}:${alert.timestamp.minute.toString().padLeft(2, '0')}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.3),
-              fontSize: 11,
+            'ECG SIGNAL — LEAD II · 250 HZ SAMPLING',
+            style: GoogleFonts.inter(
+              color: Colors.black54,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
             ),
+          ),
+          const SizedBox(height: 12),
+          // Stack to overlay the grid lines and chart
+          Stack(
+            children: [
+              // Mock grid lines
+              Positioned.fill(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _dashedLine(),
+                    Container(height: 0.5, color: const Color(0xFFE1F5EE)), // baseline
+                    _dashedLine(),
+                  ],
+                ),
+              ),
+              EcgChart(data: provider.ecgHistory, height: 100),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Normal sinus rhythm detected',
+                style: GoogleFonts.inter(fontSize: 10, color: Colors.black54),
+              ),
+              Text(
+                'Refreshed 0.5s ago',
+                style: GoogleFonts.robotoMono(fontSize: 10, color: Colors.black54),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _dashedLine() {
+    return Row(
+      children: List.generate(
+        30,
+        (index) => Expanded(
+          child: Container(
+            color: index % 2 == 0 ? const Color(0xFFE1F5EE) : Colors.transparent,
+            height: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlertsAndControls(VitalsProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.15), width: 0.5),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Alerts List Mock
+          _mockAlertRow('✓', 'Temperature stable', const Color(0xFF3B6D11), const Color(0xFFEAF3DE), 'Now'),
+          const SizedBox(height: 8),
+          _mockAlertRow('✓', 'Heart rate normal', const Color(0xFF3B6D11), const Color(0xFFEAF3DE), 'Now'),
+          const SizedBox(height: 8),
+          _mockAlertRow('!', 'Jaundice elevated', const Color(0xFF854F0B), const Color(0xFFFAEEDA), '13:10'),
+          const SizedBox(height: 8),
+          _mockAlertRow('i', 'Humidity adjusted +2%', const Color(0xFF185FA5), const Color(0xFFE6F1FB), '12:44'),
+          
+          const SizedBox(height: 16),
+          Container(height: 0.5, color: Colors.black.withValues(alpha: 0.15)),
+          const SizedBox(height: 16),
+          
+          Text(
+            'SYSTEM CONTROLS',
+            style: GoogleFonts.inter(
+              color: Colors.black54,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _controlRow('Heater'),
+          const SizedBox(height: 8),
+          _controlRow('Phototherapy'),
+          const SizedBox(height: 8),
+          _controlRow('Humidity auto'),
+          const SizedBox(height: 8),
+          _controlRow('Mobile alerts'),
+
+          const SizedBox(height: 16),
+          
+          // Jaundice Progress Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Jaundice index', style: GoogleFonts.inter(fontSize: 12)),
+              Text('28%', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFEF9F27), fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 6,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: 0.56,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF9F27),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('0', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
+              Text('Safe <25%', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
+              Text('50', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mockAlertRow(String iconChar, String message, Color textColor, Color bgColor, String time) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Text(
+            iconChar,
+            style: GoogleFonts.inter(color: textColor, fontSize: 10, fontWeight: FontWeight.w500),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: GoogleFonts.inter(fontSize: 12, color: Colors.black87),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Text(
+          time,
+          style: GoogleFonts.inter(fontSize: 11, color: Colors.black45),
+        ),
+      ],
+    );
+  }
+
+  Widget _controlRow(String label) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.black87)),
+        Text(
+          'ON',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: const Color(0xFF3B6D11),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
