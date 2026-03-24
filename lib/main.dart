@@ -17,7 +17,7 @@ void main() async {
   await notificationService.initialize();
 
   // Initialize ESP service in simulation mode for testing
-  final espService = EspService(simulationMode: true);
+  final espService = EspService(simulationMode: false);
 
   runApp(
     MultiProvider(

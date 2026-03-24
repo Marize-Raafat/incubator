@@ -15,7 +15,7 @@ class EspService {
   double _baseHumidity = 50.0;
 
   EspService({
-    String baseUrl = 'http://192.168.4.1',
+    String baseUrl = 'http://192.168.100.77',
     bool simulationMode = true,
   })  : _baseUrl = baseUrl,
         _simulationMode = simulationMode;
@@ -44,6 +44,11 @@ class EspService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
+        // Normalize raw ECG ADC value (0-4095) to the range the chart expects (-0.8 to 1.5)
+        if (json.containsKey('ecgValue') && json['ecgValue'] is num) {
+          final rawEcg = (json['ecgValue'] as num).toDouble();
+          json['ecgValue'] = (rawEcg - 2048) / 2048.0; // Center around 0, range approx -1.0 to 1.0
+        }
         return Vitals.fromJson(json);
       } else {
         throw Exception('ESP returned status ${response.statusCode}');
