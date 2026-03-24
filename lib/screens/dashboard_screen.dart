@@ -179,6 +179,9 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildAlertsAndControls(VitalsProvider provider) {
+    final vitals = provider.currentVitals;
+    final alerts = provider.activeAlerts.take(4).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -189,16 +192,36 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Alerts List Mock
-          _mockAlertRow('✓', 'Temperature stable', const Color(0xFF3B6D11), const Color(0xFFEAF3DE), 'Now'),
+          // Dynamic Alerts List
+          if (alerts.isEmpty)
+            _mockAlertRow('✓', 'System stable. No active alerts.', const Color(0xFF3B6D11), const Color(0xFFEAF3DE), 'Now')
+          else
+            ...alerts.map((alert) {
+              Color textColor;
+              Color bgColor;
+              String iconChar;
+              if (alert.level == AlertLevel.critical) {
+                textColor = const Color(0xFFE24B4A);
+                bgColor = const Color(0xFFFDE9E9);
+                iconChar = '!';
+              } else if (alert.level == AlertLevel.warning) {
+                textColor = const Color(0xFF854F0B);
+                bgColor = const Color(0xFFFAEEDA);
+                iconChar = '!';
+              } else {
+                textColor = const Color(0xFF3B6D11);
+                bgColor = const Color(0xFFEAF3DE);
+                iconChar = 'i';
+              }
+              final timeStr = '${alert.timestamp.hour.toString().padLeft(2, '0')}:${alert.timestamp.minute.toString().padLeft(2, '0')}';
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _mockAlertRow(iconChar, alert.title, textColor, bgColor, timeStr),
+              );
+            }),
+
           const SizedBox(height: 8),
-          _mockAlertRow('✓', 'Heart rate normal', const Color(0xFF3B6D11), const Color(0xFFEAF3DE), 'Now'),
-          const SizedBox(height: 8),
-          _mockAlertRow('!', 'Jaundice elevated', const Color(0xFF854F0B), const Color(0xFFFAEEDA), '13:10'),
-          const SizedBox(height: 8),
-          _mockAlertRow('i', 'Humidity adjusted +2%', const Color(0xFF185FA5), const Color(0xFFE6F1FB), '12:44'),
-          
-          const SizedBox(height: 16),
           Container(height: 0.5, color: Colors.black.withValues(alpha: 0.15)),
           const SizedBox(height: 16),
           
@@ -212,22 +235,27 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _controlRow('Heater'),
+          _controlRow('Heater', provider.heaterActive),
           const SizedBox(height: 8),
-          _controlRow('Phototherapy'),
+          _controlRow('Phototherapy', (vitals?.jaundiceLevel ?? 0) > 25), // Auto ON if jaundice is high
           const SizedBox(height: 8),
-          _controlRow('Humidity auto'),
+          _controlRow('Humidity auto', true),
           const SizedBox(height: 8),
-          _controlRow('Mobile alerts'),
+          _controlRow('Mobile alerts', true),
 
           const SizedBox(height: 16),
           
-          // Jaundice Progress Bar
+          // Dynamic Jaundice Progress Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Jaundice index', style: GoogleFonts.inter(fontSize: 12)),
-              Text('28%', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFEF9F27), fontWeight: FontWeight.w500)),
+              Text('${vitals?.jaundiceLevel.toStringAsFixed(1) ?? "0"}%', 
+                style: GoogleFonts.inter(
+                  fontSize: 12, 
+                  color: (vitals?.jaundiceLevel ?? 0) > provider.thresholds.jaundiceThreshold ? const Color(0xFFE24B4A) : const Color(0xFFEF9F27), 
+                  fontWeight: FontWeight.w500
+                )),
             ],
           ),
           const SizedBox(height: 6),
@@ -240,10 +268,10 @@ class DashboardScreen extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: 0.56,
+              widthFactor: ((vitals?.jaundiceLevel ?? 0) / 100.0).clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF9F27),
+                  color: (vitals?.jaundiceLevel ?? 0) > provider.thresholds.jaundiceThreshold ? const Color(0xFFE24B4A) : const Color(0xFFEF9F27),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -254,8 +282,8 @@ class DashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('0', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
-              Text('Safe <25%', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
-              Text('50', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
+              Text('Safe <${provider.thresholds.jaundiceThreshold.toInt()}%', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
+              Text('100', style: GoogleFonts.inter(fontSize: 10, color: Colors.black45)),
             ],
           ),
         ],
@@ -292,16 +320,16 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _controlRow(String label) {
+  Widget _controlRow(String label, bool isOn) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.black87)),
         Text(
-          'ON',
+          isOn ? 'ON' : 'OFF',
           style: GoogleFonts.inter(
             fontSize: 12,
-            color: const Color(0xFF3B6D11),
+            color: isOn ? const Color(0xFF3B6D11) : Colors.black45,
             fontWeight: FontWeight.w500,
           ),
         ),

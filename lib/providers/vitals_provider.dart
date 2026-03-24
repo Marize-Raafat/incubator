@@ -15,11 +15,11 @@ class VitalsProvider extends ChangeNotifier {
   final List<Vitals> _vitalsHistory = [];
   bool _isConnected = false;
   String? _errorMessage;
-  Timer? _pollingTimer;
   bool _heaterActive = false;
+  
+  StreamSubscription<Vitals>? _vitalsSubscription;
 
   static const int ecgBufferSize = 300;
-  static const Duration pollInterval = Duration(milliseconds: 500);
 
   VitalsProvider({
     required EspService espService,
@@ -37,60 +37,72 @@ class VitalsProvider extends ChangeNotifier {
   bool get heaterActive => _heaterActive;
   List<HealthAlert> get activeAlerts => _notificationService.activeAlerts;
 
-  /// Start polling for vitals data
+  /// Start monitoring vitals data via WebSocket stream
   void startMonitoring() {
-    _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(pollInterval, (_) => _fetchData());
+    _espService.connect();
+    
+    _vitalsSubscription?.cancel();
+    _vitalsSubscription = _espService.vitalsStream.listen(
+      (vitals) => _handleNewVitals(vitals),
+      onError: (error) {
+        _isConnected = false;
+        _errorMessage = error.toString();
+        notifyListeners();
+      },
+      onDone: () {
+        _isConnected = false;
+        _errorMessage = "Connection closed.";
+        notifyListeners();
+      }
+    );
   }
 
-  /// Stop polling
+  /// Stop monitoring
   void stopMonitoring() {
-    _pollingTimer?.cancel();
-    _pollingTimer = null;
+    _vitalsSubscription?.cancel();
+    _espService.disconnect();
   }
 
-  /// Fetch data from ESP or simulation
-  Future<void> _fetchData() async {
-    try {
-      final vitals = await _espService.fetchVitals();
-      _currentVitals = vitals;
-      _isConnected = true;
-      _errorMessage = null;
+  /// Process incoming data from WebSocket stream
+  Future<void> _handleNewVitals(Vitals vitals) async {
+    _currentVitals = vitals;
+    _isConnected = true;
+    _errorMessage = null;
 
-      // Update ECG history buffer
-      _ecgHistory.add(vitals.ecgValue);
-      while (_ecgHistory.length > ecgBufferSize) {
-        _ecgHistory.removeFirst();
-      }
-
-      // Keep last 60 vitals records for trends
-      _vitalsHistory.add(vitals);
-      if (_vitalsHistory.length > 60) {
-        _vitalsHistory.removeAt(0);
-      }
-
-      // Check thresholds and generate alerts
-      final alerts = _notificationService.checkVitals(vitals, thresholds);
-      for (final alert in alerts) {
-        _notificationService.showNotification(alert);
-      }
-
-      // Auto-activate heater if temperature is low
-      if (vitals.temperature < thresholds.minTemperature && !_heaterActive) {
-        _heaterActive = true;
-        await _espService.sendCommand('heater_on');
-      } else if (vitals.temperature >= thresholds.minTemperature + 0.5 &&
-          _heaterActive) {
-        _heaterActive = false;
-        await _espService.sendCommand('heater_off');
-      }
-
-      notifyListeners();
-    } catch (e) {
-      _isConnected = false;
-      _errorMessage = e.toString();
-      notifyListeners();
+    // Fast Append ECG history from array
+    if (vitals.ecgWavefront.isNotEmpty) {
+      _ecgHistory.addAll(vitals.ecgWavefront);
+    } else {
+      _ecgHistory.add(vitals.ecgValue); // Fallback
     }
+
+    while (_ecgHistory.length > ecgBufferSize) {
+      _ecgHistory.removeFirst();
+    }
+
+    // Keep last 60 vitals records for trends
+    _vitalsHistory.add(vitals);
+    if (_vitalsHistory.length > 60) {
+      _vitalsHistory.removeAt(0);
+    }
+
+    // Check thresholds and generate alerts
+    final alerts = _notificationService.checkVitals(vitals, thresholds);
+    for (final alert in alerts) {
+      _notificationService.showNotification(alert);
+    }
+
+    // Auto-activate heater if temperature is low
+    if (vitals.temperature < thresholds.minTemperature && !_heaterActive) {
+      _heaterActive = true;
+      await _espService.sendCommand('heater_on');
+    } else if (vitals.temperature >= thresholds.minTemperature + 0.5 &&
+        _heaterActive) {
+      _heaterActive = false;
+      await _espService.sendCommand('heater_off');
+    }
+
+    notifyListeners();
   }
 
   /// Update ESP32 base URL
@@ -115,7 +127,8 @@ class VitalsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _pollingTimer?.cancel();
+    _vitalsSubscription?.cancel();
+    _espService.disconnect();
     super.dispose();
   }
 }

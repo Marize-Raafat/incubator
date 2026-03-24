@@ -2,12 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/vitals.dart';
 
 class EspService {
   String _baseUrl;
   bool _simulationMode;
   final Random _random = Random();
+  
+  WebSocketChannel? _channel;
+  final StreamController<Vitals> _vitalsController = StreamController<Vitals>.broadcast();
+  Timer? _simulationTimer;
 
   // Simulation state for realistic ECG waveform
   int _ecgPhase = 0;
@@ -15,52 +20,83 @@ class EspService {
   double _baseHumidity = 50.0;
 
   EspService({
-    String baseUrl = 'http://192.168.100.77',
+    String baseUrl = 'http://10.89.230.33', // ESP32 IP from Serial Monitor
     bool simulationMode = true,
   })  : _baseUrl = baseUrl,
         _simulationMode = simulationMode;
 
   String get baseUrl => _baseUrl;
   bool get isSimulating => _simulationMode;
+  
+  Stream<Vitals> get vitalsStream => _vitalsController.stream;
 
   void updateBaseUrl(String url) {
     _baseUrl = url;
+    if (!_simulationMode) {
+      _connectWebSocket();
+    }
   }
 
   void setSimulationMode(bool enabled) {
     _simulationMode = enabled;
+    _simulationTimer?.cancel();
+    _channel?.sink.close();
+    
+    if (_simulationMode) {
+      _startSimulation();
+    } else {
+      _connectWebSocket();
+    }
   }
 
-  /// Fetch current vitals from ESP32 or generate simulated data
-  Future<Vitals> fetchVitals() async {
+  void connect() {
     if (_simulationMode) {
-      return _generateSimulatedVitals();
+      _startSimulation();
+    } else {
+      _connectWebSocket();
     }
+  }
+  
+  void disconnect() {
+    _simulationTimer?.cancel();
+    _channel?.sink.close();
+    _channel = null;
+  }
 
+  void _connectWebSocket() {
+    _channel?.sink.close(); // Close any existing connection
+    
+    // Convert http:// IP to ws:// IP on port 81 (as defined in our Arduino sketch)
+    String wsUrl = _baseUrl.replaceFirst('http://', 'ws://');
+    wsUrl = wsUrl.replaceFirst('https://', 'ws://');
+    
+    // Removing any trailing paths or ports
+    Uri uri = Uri.parse(wsUrl);
+    String targetWs = 'ws://${uri.host}:81';
+    
     try {
-      final response = await http
-          .get(Uri.parse('$_baseUrl/vitals'))
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body) as Map<String, dynamic>;
-        // Normalize raw ECG ADC value (0-4095) to the range the chart expects (-0.8 to 1.5)
-        if (json.containsKey('ecgValue') && json['ecgValue'] is num) {
-          final rawEcg = (json['ecgValue'] as num).toDouble();
-          json['ecgValue'] = (rawEcg - 2048) / 2048.0; // Center around 0, range approx -1.0 to 1.0
+      _channel = WebSocketChannel.connect(Uri.parse(targetWs));
+      
+      _channel!.stream.listen((message) {
+        try {
+          final Map<String, dynamic> json = jsonDecode(message);
+          _vitalsController.add(Vitals.fromJson(json));
+        } catch (e) {
+          _vitalsController.addError('Failed to parse WebSocket message: $e');
         }
-        return Vitals.fromJson(json);
-      } else {
-        throw Exception('ESP returned status ${response.statusCode}');
-      }
-    } on TimeoutException {
-      throw Exception('Connection to ESP32 timed out');
+      }, onError: (error) {
+         _vitalsController.addError('WebSocket Error: $error');
+      }, onDone: () {
+         _vitalsController.addError('WebSocket Closed');
+         // Could attempt auto-reconnect here...
+      });
     } catch (e) {
-      throw Exception('Failed to connect: $e');
+      _vitalsController.addError('Failed to connect to WebSocket: $e');
     }
   }
 
   /// Send command to ESP32 (e.g., activate heater)
+  /// Uses the HTTP API for commands since WebSockets are mostly for broadcasting data here
   Future<bool> sendCommand(String command, {Map<String, dynamic>? params}) async {
     if (_simulationMode) return true;
 
@@ -78,9 +114,22 @@ class EspService {
     }
   }
 
+  /// Start the simulation to pump out data every 100ms
+  void _startSimulation() {
+    _simulationTimer?.cancel();
+    _simulationTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      _vitalsController.add(_generateSimulatedVitals());
+    });
+  }
+
   /// Generate realistic simulated vitals for demo purposes
   Vitals _generateSimulatedVitals() {
-    _ecgPhase = (_ecgPhase + 1) % 100;
+    // Generate an array of 10 fast ECG points (representing 100ms of data at 100Hz)
+    List<double> simulatedWavefront = [];
+    for (int i = 0; i < 10; i++) {
+        _ecgPhase = (_ecgPhase + 1) % 100;
+        simulatedWavefront.add(_generateEcgSample(_ecgPhase));
+    }
 
     // Slowly drift temperature
     _baseTemp += (_random.nextDouble() - 0.5) * 0.05;
@@ -94,7 +143,8 @@ class EspService {
       temperature: double.parse(_baseTemp.toStringAsFixed(1)),
       humidity: double.parse(_baseHumidity.toStringAsFixed(1)),
       heartRate: 130 + _random.nextInt(21) - 10, // 120-150 bpm
-      ecgValue: _generateEcgSample(_ecgPhase),
+      ecgValue: simulatedWavefront.last, // Fallback
+      ecgWavefront: simulatedWavefront,
       jaundiceLevel: 20.0 + _random.nextDouble() * 15, // 20-35 normal range
       timestamp: DateTime.now(),
     );

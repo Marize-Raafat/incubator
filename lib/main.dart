@@ -5,6 +5,8 @@ import 'screens/dashboard_screen.dart';
 import 'screens/ecg_screen.dart';
 import 'screens/jaundice_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/alerts_screen.dart';
+import 'screens/history_screen.dart';
 import 'services/esp_service.dart';
 import 'services/notification_service.dart';
 import 'providers/vitals_provider.dart';
@@ -16,7 +18,7 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
 
-  // Initialize ESP service in simulation mode for testing
+  // Initialize ESP service in live mode
   final espService = EspService(simulationMode: false);
 
   runApp(
@@ -73,11 +75,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    Center(child: Text('Alerts Detail View (Mock)', style: TextStyle(color: Colors.black54))),
-    Center(child: Text('Patient History (Mock)', style: TextStyle(color: Colors.black54))),
-    SettingsScreen(),
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const AlertsScreen(),
+    const HistoryScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -104,9 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Text(
-                      'Patient: INF-2026-042 · Unit 3, Bed 2 · Admitted 12 Mar 2026',
+                      '12 Mar 2026',
                       style: GoogleFonts.inter(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 11,

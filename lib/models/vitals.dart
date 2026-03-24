@@ -2,7 +2,8 @@ class Vitals {
   final double temperature;
   final double humidity;
   final int heartRate;
-  final double ecgValue;
+  final double ecgValue; // Keep for backwards compatibility
+  final List<double> ecgWavefront; // New array from WebSockets
   final double jaundiceLevel;
   final DateTime timestamp;
 
@@ -10,17 +11,38 @@ class Vitals {
     required this.temperature,
     required this.humidity,
     required this.heartRate,
-    required this.ecgValue,
+    this.ecgValue = 0.0,
+    this.ecgWavefront = const [],
     required this.jaundiceLevel,
     required this.timestamp,
   });
 
   factory Vitals.fromJson(Map<String, dynamic> json) {
+    // Check if we have an array of ECG values (WebSocket)
+    List<double> wavefront = [];
+    if (json.containsKey('ecgWavefront') && json['ecgWavefront'] is List) {
+      wavefront = (json['ecgWavefront'] as List).map((e) {
+        double raw = (e as num).toDouble();
+        // Normalize 0-4095 to range -1.0 to 1.0 roughly
+        return (raw - 2048) / 2048.0;
+      }).toList();
+    }
+
+    // Handle single value legacy (HTTP poll)
+    double singleEcg = 0.0;
+    if (json.containsKey('ecgValue') && json['ecgValue'] is num) {
+      singleEcg = (json['ecgValue'] as num).toDouble();
+      if (wavefront.isEmpty) {
+        singleEcg = (singleEcg - 2048) / 2048.0;
+      }
+    }
+
     return Vitals(
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
       humidity: (json['humidity'] as num?)?.toDouble() ?? 0.0,
       heartRate: (json['heartRate'] as num?)?.toInt() ?? 0,
-      ecgValue: (json['ecgValue'] as num?)?.toDouble() ?? 0.0,
+      ecgValue: singleEcg,
+      ecgWavefront: wavefront,
       jaundiceLevel: (json['jaundiceLevel'] as num?)?.toDouble() ?? 0.0,
       timestamp: json['timestamp'] != null
           ? DateTime.parse(json['timestamp'] as String)
@@ -79,6 +101,6 @@ class ThresholdSettings {
     this.maxHeartRate = 160,
     this.minHumidity = 40,
     this.maxHumidity = 60,
-    this.jaundiceThreshold = 50,
+    this.jaundiceThreshold = 25,
   });
 }
